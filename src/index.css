@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Plus Jakarta Sans', 'Kantumruy Pro', sans-serif;
+  }
+
+  /* Modern Web Guidance: Modal Dialog scroll containment */
+  dialog:modal {
+    overscroll-behavior: contain;
+  }
+  dialog::backdrop {
+    overflow: hidden;
+    overscroll-behavior: contain;
+  }
+}
+
+/* Subtle Angkor Golden Pattern Overlay */
+.angkor-pattern-bg {
+  background-image: radial-gradient(rgba(212, 175, 55, 0.14) 1px, transparent 1px);
+  background-size: 20px 20px;
+}

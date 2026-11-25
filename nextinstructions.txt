@@ -1,0 +1,32 @@
+
+# Next Instructions for I Want A Visa (www.iwantavisa.com) — Cambodia Hub
+
+1. [COMPLETED] Convert all Thailand guides (Residence Certificate, Digital Arrival Card, Condo Rental Checklist, Bank Account Opening, Driving License) into authoritative Cambodia guides sourced from official Cambodian portals (arrival.gov.kh, evisa.gov.kh, immigration.gov.kh FPCS, fwcms.mlvt.gov.kh, mpwt.gov.kh, registrationservices.gov.kh CamDX, ABA/ACLEDA/Canadia).
+2. [COMPLETED] Build full Cambodia-themed Website & All Categories (Visas, e-Arrival, Sangkat & FPCS, Banking, MPWT Driving License, Condo Rentals Gallery with Message Agent Postcards, Agent Service Marketplace, Digital Transformation & Tech Entrepreneur Advisory, Cambodia Tech Community Hub, and Superadmin Control Panel with Confirm Delete).
+3. [COMPLETED] Merchant Offer Postcards: merchants post offers for anything a traveller needs (28 categories in 8 groups) as postcards from the Merchant Desk (Admin Panel), with an optional validated LinkedIn Pulse link and a photo uploaded to imgbb (16:9 crop, never stored on our server). Every postcard shares back to the web app (?offer={id}).
+4. [COMPLETED] Geolocation: people log in, then their location is auto-detected (footer + search ranking); merchants adjust their detected location and all their postcards update. Search bar and Categories page rank posts by distance, service match and approved review scores.
+5. [COMPLETED] Reviews (superadmin approves before publishing) and private user ↔ merchant messages.
+6. [COMPLETED] USD only, with the footer locked at "$1 = … ៛ KHR" (Frankfurter v2 rate, cached 6 hours).
+7. [COMPLETED] Google sign-in (Firebase Auth): logging in with Google makes the person a SUPPORTER at once — no form, works before Firestore is reachable. Register adds optional details (location, address, phone, Telegram ID; business details for merchants).
+8. [COMPLETED] Postcard grids (merchant offers, category rankings, rentals, Merchant Desk, agent services, community posts): 2 postcards per row on every screen incl. Android and iPhone, 3 rows at a time, then a More button. Phones show a compact face; tapping opens the full postcard. The phone header slides away while scrolling down.
+9. [BUILT — DEPLOY NEEDED] Supporter tokens: 1 token = US$1, packs of 10 / 50 / 100, never expire, on the front page before logging in. Stripe Checkout via Cloud Functions in functions/ (createTokenCheckout, stripeWebhook, onSupporterCreated); balances in tokenWallets/{uid}, receipts in tokenPurchases/{sessionId}. Tokens are not spent on anything yet (confirmed 2026-11-08) — supporters buy and hold them.
+10. [COMPLETED] Agent services and community posts are postcards, each with up to 6 photos (cover first; cropped to 16:9 and uploaded to imgbb from the Admin Panel's agent form and the community post form). The full postcard has a swipeable photo gallery; grid cards show the cover and a photo count. Share links open the pinned postcard: ?agent={id} (Agent Services) and ?post={id} (Tech Community).
+
+# Deploy checklist (Firebase project ai-foundation-firebase)
+
+a. [COMPLETED] firebase login
+b. [COMPLETED] firebase deploy --only firestore:iwantavisa (rules released to cloud.firestore)
+c. Firebase console → Authentication → Sign-in method → Google: enabled. Settings → Authorised domains: add www.iwantavisa.com and iwantavisa.com (and any LAN IP / tunnel used for phone testing).
+d. Upgrade the project to the Blaze plan (Cloud Functions + Secret Manager need it).
+e. firebase functions:secrets:set STRIPE_SECRET_KEY        (paste the sk_test_… key — rotate it first in the Stripe dashboard, it was shared in chat)
+f. cd functions && npm install && cd .. && firebase deploy --only functions
+g. Stripe dashboard (test mode) → Developers → Webhooks → add endpoint = the stripeWebhook URL printed by the deploy; events: checkout.session.completed, checkout.session.async_payment_succeeded. Then: firebase functions:secrets:set STRIPE_WEBHOOK_SECRET (whsec_…) and redeploy functions.
+h. Test card 4242 4242 4242 4242, any future date / CVC. Switch to live keys only after testing.
+
+# Next phases
+
+11. [NEXT PHASE] Persist merchant profiles, offers, reviews, messages, agent services, rentals and community posts in Firestore (rules already written, incl. the 6-photo lists); seed reviews/messages and the Unsplash sample photos in src/data are SAMPLE data — remove before launch.
+12. [NEXT PHASE] Superadmin custom claim (role = superadmin) via the Admin SDK for review moderation; 'merchant' / 'agent' claims for merchant and agent accounts.
+13. [NEXT PHASE] Server/edge route for /?offer={id}, /?agent={id} and /?post={id} rendering per-postcard OpenGraph tags (rich previews on Facebook/LinkedIn).
+14. [NEXT PHASE] Code-split the bundle (Firebase makes it ~1.3 MB / 340 kB gzip).
+15. [OPEN] What tokens will be spent on (nothing uses them yet), and whether merchant offers and rentals should also take several photos (they take one today).

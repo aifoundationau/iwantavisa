@@ -1,0 +1,952 @@
+rules_version = '2';
+
+// ===============================================================
+// Assumed Data Model — I Want A Visa Cambodia (www.iwantavisa.com)
+// ===============================================================
+//
+// This security rules file enforces strict schema validation,
+// integer-only token economy constraints, role-based access control
+// via Firebase Auth Custom Claims, and Australian Privacy Act 1988
+// (APP) / Cambodia E-Commerce Law PII protection across all collections.
+//
+// Collection: agentServices/{serviceId}
+// Document ID: serviceId (string, e.g. AGT-...)
+// Fields:
+//   - id: string (optional/immutable, 3..40 chars) - unique listing identifier
+//   - agentUid: string (optional/immutable on agent update, 1..128 chars) - owning agent Firebase UID
+//   - agentName: string (required, 2..80 chars) - verified agent display name
+//   - agencyTitle: string (optional, 3..100 chars) - registered agency name
+//   - category: string (required, enum) - service category
+//   - serviceTitle: string (optional if title present, 5..120 chars) - service headline
+//   - title: string (optional if serviceTitle present, 5..120 chars) - alias for service headline
+//   - description: string (required, 10..800 chars) - detailed service scope
+//   - deliverables: list<string> (optional, 1..8 items) - checklist of deliverables
+//   - turnaroundDays: string (optional, 2..40 chars) - estimated processing turnaround
+//   - tokenCost: int (required, 1..100000) - strict integer token price
+//   - priceUsd: int (required, 1..50000) - positive integer USD price
+//   - priceAud: int (required, 1..80000) - positive integer AUD price
+//   - city: string (required, enum) - Cambodian city of operation
+//   - sangkatDistrict: string (optional, 2..80 chars) - Sangkat / Khan district
+//   - verifiedLicenseNo: string (optional, 5..32 chars) - MOC/GDebt/Ministry license code
+//   - contactTelegram: string (optional, 5..33 chars) - @handle
+//   - contactPhoneKh: string (optional, 8..16 chars) - +855 or 0 phone format
+//   - rating: number (optional, 1..5) - verified review rating
+//   - reviewCount: int (optional, 0..100000) - total count of verified reviews
+//   - isLockedFromCsv: bool (optional) - whether locked by Superadmin CSV gate
+//   - imageUrls: list<string> (optional, 0..6 https://i.ibb.co/… links <= 2048 chars) - postcard photos, cover first
+//   - createdAt: timestamp or ISO string (optional/immutable) - creation timestamp (the postcard's postmark)
+//   - updatedAt: timestamp or ISO string (optional) - last modification timestamp
+//
+// Collection: rentalListings/{rentalId}
+// Document ID: rentalId (string, e.g. RNT-...)
+// Fields:
+//   - id: string (optional/immutable, 3..40 chars) - listing ID
+//   - title: string (required, 5..120 chars) - property headline
+//   - propertyType: string (optional, enum) - Condo, Serviced Apartment, etc.
+//   - city: string (required, enum) - Phnom Penh, Siem Reap, Sihanoukville, Kampot, Koh Rong, Battambang
+//   - sangkat: string (optional if district present, 2..80 chars) - Sangkat / district name
+//   - district: string (optional if sangkat present, 2..80 chars) - alias for sangkat
+//   - priceUsdMonthly: int (required, 100..25000) - monthly rent in USD
+//   - priceAudMonthly: int (optional, 150..40000) - monthly rent in AUD
+//   - tokenDeposit: int (required, 10..100000) - strict integer token deposit
+//   - bedrooms: int (optional, 0..12) - bedroom count
+//   - bathrooms: int (optional, 1..12) - bathroom count
+//   - areaSqm: int (optional, 18..2000) - floor area in square meters
+//   - fpcsGuaranteed: bool (optional if fpcsReady present) - FPCS registration guaranteed
+//   - fpcsReady: bool (optional if fpcsGuaranteed present) - alias for fpcsGuaranteed
+//   - sangkatCertAssisted: bool (optional) - Sangkat residence cert assistance
+//   - edcRateKhr: string (optional, 1..40 chars) - electricity tariff rate
+//   - imageUrl: string (optional, valid http/https URL <= 2048 chars) - property image
+//   - badgeText: string (optional, 1..50 chars) - highlight badge text
+//   - amenities: list<string> (optional, 1..20 items) - property amenities list
+//   - agentName: string (required, 2..80 chars) - listing agent name
+//   - agentAgency: string (optional, 2..80 chars) - listing agency name
+//   - agentTelegram: string (optional if agentContact present, 5..33 chars) - @telegram
+//   - agentContact: string (optional if agentTelegram present, 3..80 chars) - agent contact
+//   - postcardStampCode: string (optional, 4..24 chars) - KH postcard stamp identifier
+//   - createdAt: timestamp or ISO string (optional/immutable) - creation timestamp
+//   - updatedAt: timestamp or ISO string (optional) - update timestamp
+//
+// Collection: postcardMessages/{messageId}
+// Document ID: messageId (string, e.g. PCARD-...)
+// Fields (Contains PII - Strictly restricted read access):
+//   - id: string (optional/immutable, 4..32 chars)
+//   - rentalId: string (required/immutable, 2..64 chars)
+//   - rentalTitle: string (optional, 2..120 chars)
+//   - recipientAgent: string (optional, 2..80 chars)
+//   - assignedAgentUid: string (optional/immutable, 1..128 chars) - Firebase UID of assigned agent
+//   - senderUid: string (optional/immutable, 1..128 chars) - Firebase UID if authenticated
+//   - senderName: string (required, 2..80 chars)
+//   - senderEmail: string (required/immutable, valid email <= 120 chars)
+//   - telegramOrWhatsApp: string (optional, 3..40 chars)
+//   - currentVisaType: string (optional if visaType present, 2..60 chars)
+//   - visaType: string (optional if currentVisaType present, 2..60 chars)
+//   - moveInDate: string (required, YYYY-MM-DD format, 10 chars)
+//   - leaseDurationMonths: int (optional, 1..60)
+//   - needsFpcsAndSangkat: bool (optional)
+//   - message: string (required, 5..1000 chars)
+//   - createdAt: timestamp or ISO date-time string (required/immutable)
+//
+// Collection: techServiceInquiries/{inquiryId}
+// Document ID: inquiryId (string, e.g. TECH-...)
+// Fields (Contains PII - Superadmin read/update/delete only):
+//   - id: string (optional/immutable, 4..32 chars)
+//   - founderUid: string (optional/immutable, 1..128 chars)
+//   - founderName: string (required, 2..80 chars)
+//   - companyOrStartup: string (optional if companyName present, 2..100 chars)
+//   - companyName: string (optional if companyOrStartup present, 2..100 chars)
+//   - email: string (required/immutable, valid email <= 120 chars)
+//   - telegramHandle: string (optional, 2..40 chars)
+//   - serviceStream: string (optional if serviceCategory present, 3..100 chars)
+//   - serviceCategory: string (optional if serviceStream present, 3..100 chars)
+//   - teamSize: string (optional, enum)
+//   - projectBrief: string (required, 10..1500 chars)
+//   - status: string (optional, enum: ['new', 'reviewing', 'scheduled', 'archived'])
+//   - createdAt: timestamp or ISO date-time string (required/immutable)
+//
+// Collection: communityPosts/{postId}
+// Document ID: postId (string, e.g. COMM-...)
+// Fields (Public Community Board - No PII allowed):
+//   - id: string (optional/immutable, 4..32 chars)
+//   - authorUid: string (required/immutable, 1..128 chars) - must match request.auth.uid on create
+//   - authorName: string (required, 2..80 chars)
+//   - authorRole: string (required, 2..80 chars)
+//   - hubLocation: string (optional, 2..80 chars)
+//   - category: string (required, enum)
+//   - title: string (required, 5..140 chars)
+//   - summary: string (optional if content present, 10..2000 chars)
+//   - content: string (optional if summary present, 10..2000 chars)
+//   - eventDate: string (optional, 2..40 chars)
+//   - attendeesCount: int (optional, 1..5000)
+//   - imageUrls: list<string> (optional, 0..6 https://i.ibb.co/… links <= 2048 chars) - postcard photos, cover first
+//   - createdAt: timestamp or ISO date-time string (required/immutable)
+//
+// Collection: merchantProfiles/{merchantId}
+// Document ID: merchantId (string, e.g. MER-...)
+// Fields (Public business listing - merchant business contact only, no customer PII):
+//   - id: string (optional/immutable, 4..32 chars)
+//   - merchantUid: string (required/immutable, 1..128 chars) - must match request.auth.uid on create
+//   - businessName: string (required, 2..80 chars)
+//   - contact: string (required, 3..80 chars) - public Telegram / WhatsApp / phone
+//   - city: string (required, enum) - postcard city
+//   - addressLine: string (required, 2..100 chars) - street / area / landmark
+//   - geo: map (optional) - { lat, lng, accuracyM } saved only when the merchant accepts an auto-detected location
+//   - locationSource: string (required, enum: ['auto-detected', 'manual'])
+//   - locationUpdatedAt: timestamp or ISO date-time string (required) - must be fresh when the location changes
+//   - createdAt: timestamp or ISO date-time string (optional/immutable)
+//
+// Collection: merchantOffers/{offerId}
+// Document ID: offerId (string, e.g. OFR-...) - share links open https://www.iwantavisa.com/?offer={offerId}
+// Fields (Public Postcard Board - business fields denormalized from merchantProfiles):
+//   - id: string (optional/immutable, 4..32 chars)
+//   - merchantId: string (required/immutable, 4..32 chars) - must reference a merchantProfiles doc owned by the requester
+//   - merchantUid: string (required/immutable, 1..128 chars) - must match request.auth.uid on create
+//   - businessName: string (required, 2..80 chars) - denormalized
+//   - contact: string (required, 3..80 chars) - denormalized
+//   - city: string (required, enum) - denormalized; rewritten on all of a merchant's offers when their location changes
+//   - addressLine: string (required, 2..100 chars) - denormalized, as above
+//   - category: string (required, enum of 28) - visa_services, hotels_hostels, taxis_transfers, money_exchange, ...
+//   - headline: string (required, 5..100 chars)
+//   - dealBadge: string (required, 2..24 chars) - e.g. "20% OFF"
+//   - message: string (required, 10..500 chars) - postcard message side
+//   - imageUrl: string (optional, https://i.ibb.co/… <= 2048 chars) - 16:9 postcard photo uploaded to imgbb
+//   - linkedInPulseUrl: string (optional, https://[*.]linkedin.com/pulse/... <= 2048 chars)
+//   - postcardStampCode: string (required, KH-... 6..20 chars)
+//   - createdAt: timestamp or ISO date-time string (required/immutable)
+//   - updatedAt: timestamp or ISO date-time string (optional)
+//
+// ===============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    // Check if the user is authenticated via Firebase Auth
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Check if the authenticated user holds the 'superadmin' custom claim
+    function isSuperAdmin() {
+      return isAuthenticated() &&
+        ('role' in request.auth.token) &&
+        request.auth.token.role == 'superadmin';
+    }
+
+    // Check if the authenticated user holds a verified 'agent' or 'superadmin' custom claim
+    function isVerifiedAgent() {
+      return isAuthenticated() &&
+        ('role' in request.auth.token) &&
+        (request.auth.token.role == 'agent' || request.auth.token.role == 'superadmin');
+    }
+
+    // Check if the authenticated user holds a 'merchant', 'agent' or 'superadmin' custom claim
+    function isVerifiedMerchant() {
+      return isAuthenticated() &&
+        ('role' in request.auth.token) &&
+        request.auth.token.role in ['merchant', 'agent', 'superadmin'];
+    }
+
+    // Check if the authenticated user owns the resource by UID
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Validate required fields exist on the incoming document
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    // Validate that the document contains ONLY explicitly allowed fields (additionalProperties: false)
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // Validate string type and character length bounds
+    function validStringLength(field, minLen, maxLen) {
+      return (field in request.resource.data) &&
+        request.resource.data[field] is string &&
+        request.resource.data[field].size() >= minLen &&
+        request.resource.data[field].size() <= maxLen;
+    }
+
+    // Validate optional string field (if present, must be string within length bounds)
+    function isValidOptionalString(field, minLen, maxLen) {
+      return !(field in request.resource.data) ||
+        (request.resource.data[field] is string &&
+         request.resource.data[field].size() >= minLen &&
+         request.resource.data[field].size() <= maxLen);
+    }
+
+    // Validate optional integer field within inclusive bounds
+    function isValidOptionalInt(field, minVal, maxVal) {
+      return !(field in request.resource.data) ||
+        (request.resource.data[field] is int &&
+         request.resource.data[field] >= minVal &&
+         request.resource.data[field] <= maxVal);
+    }
+
+    // Validate optional boolean field
+    function isValidOptionalBool(field) {
+      return !(field in request.resource.data) ||
+        (request.resource.data[field] is bool);
+    }
+
+    // Validate email format and max length
+    function isValidEmail(email) {
+      return email is string &&
+        email.size() >= 5 &&
+        email.size() <= 120 &&
+        email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    // Validate HTTP/HTTPS URL format and max length
+    function isValidUrl(url) {
+      return url is string &&
+        url.size() >= 8 &&
+        url.size() <= 2048 &&
+        (url.matches("^https://.*") || url.matches("^http://.*"));
+    }
+
+    // Validate a LinkedIn Pulse article link (https, linkedin.com or a regional subdomain, /pulse/{slug})
+    function isValidLinkedInPulseUrl(url) {
+      return url is string &&
+        url.size() <= 2048 &&
+        url.matches("^https://([a-z0-9-]+\\.)?linkedin\\.com/pulse/[^/?#]+.*$");
+    }
+
+    // Validate that a Firestore timestamp is within the last 5 minutes
+    function isRecentTimestamp(time) {
+      return time is timestamp &&
+        time > request.time - duration.value(5, 'm') &&
+        time <= request.time;
+    }
+
+    // Validate ISO 8601 date-time string format (YYYY-MM-DDTHH:MM:SS...)
+    function isValidDateString(dateStr) {
+      return dateStr is string &&
+        dateStr.size() >= 10 &&
+        dateStr.size() <= 40 &&
+        dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
+    }
+
+    // Validate createdAt field (supports either recent serverTimestamp/Timestamp or ISO 8601 string)
+    function isValidCreatedAt(val) {
+      return isRecentTimestamp(val) || isValidDateString(val);
+    }
+
+    // Stored time value (Timestamp or ISO string) with no recency window — for fields kept
+    // across updates; freshness is checked separately when the value is written.
+    function isTimeValue(val) {
+      return val is timestamp || isValidDateString(val);
+    }
+
+    // Ensure specified immutable fields cannot be modified during an update operation
+    function areImmutableFieldsUnchanged(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    // Validate bounded string list (checks list size and first/last element types & sizes)
+    function isValidBoundedStringList(listVal, minItems, maxItems, maxItemLen) {
+      return listVal is list &&
+        listVal.size() >= minItems &&
+        listVal.size() <= maxItems &&
+        (listVal.size() == 0 ||
+          (listVal[0] is string &&
+           listVal[0].size() >= 1 &&
+           listVal[0].size() <= maxItemLen &&
+           listVal[listVal.size() - 1] is string &&
+           listVal[listVal.size() - 1].size() >= 1 &&
+           listVal[listVal.size() - 1].size() <= maxItemLen));
+    }
+
+    // One uploaded postcard photo: a direct imgbb link
+    function isImgbbPhotoUrl(url) {
+      return url is string &&
+        url.size() <= 2048 &&
+        url.matches("^https://i\\.ibb\\.co/.+$");
+    }
+
+    // Postcard photos (agent services, community posts): up to 6 imgbb links, cover first.
+    // Rules have no loops, so each of the 6 slots is checked (|| short-circuits past the end).
+    function isValidPostcardPhotos(photos) {
+      return photos is list &&
+        photos.size() <= 6 &&
+        (photos.size() < 1 || isImgbbPhotoUrl(photos[0])) &&
+        (photos.size() < 2 || isImgbbPhotoUrl(photos[1])) &&
+        (photos.size() < 3 || isImgbbPhotoUrl(photos[2])) &&
+        (photos.size() < 4 || isImgbbPhotoUrl(photos[3])) &&
+        (photos.size() < 5 || isImgbbPhotoUrl(photos[4])) &&
+        (photos.size() < 6 || isImgbbPhotoUrl(photos[5]));
+    }
+
+    // ===============================================================
+    // Domain Validators (Called in BOTH create and update rules)
+    // ===============================================================
+
+    // 1. Validator for agentServices/{serviceId}
+    function isValidAgentService(data) {
+      let allowedFields = [
+        'id', 'agentUid', 'agentName', 'agencyTitle', 'category',
+        'serviceTitle', 'title', 'description', 'deliverables',
+        'turnaroundDays', 'tokenCost', 'priceUsd', 'priceAud',
+        'city', 'sangkatDistrict', 'verifiedLicenseNo',
+        'contactTelegram', 'contactPhoneKh', 'rating',
+        'reviewCount', 'isLockedFromCsv', 'imageUrls', 'createdAt', 'updatedAt'
+      ];
+      let validCategories = [
+        'visa_extensions', 'sangkat_fpcs', 'bank_account',
+        'driver_license_mpwt', 'condo_relocation',
+        'camdx_incorporation', 'work_permit_fwcms'
+      ];
+      let validCities = [
+        'Phnom Penh', 'Siem Reap', 'Sihanoukville', 'Kampot', 'Battambang', 'Koh Rong'
+      ];
+
+      return hasOnlyAllowedFields(allowedFields) &&
+        hasRequiredFields(['agentName', 'category', 'description', 'priceUsd', 'city']) &&
+        (('serviceTitle' in data) || ('title' in data)) &&
+        isValidOptionalString('id', 3, 40) &&
+        isValidOptionalString('agentUid', 1, 128) &&
+        validStringLength('agentName', 2, 80) &&
+        isValidOptionalString('agencyTitle', 3, 100) &&
+        (data.category is string && data.category in validCategories) &&
+        isValidOptionalString('serviceTitle', 5, 120) &&
+        isValidOptionalString('title', 5, 120) &&
+        validStringLength('description', 10, 800) &&
+        (!('deliverables' in data) || isValidBoundedStringList(data.deliverables, 1, 8, 120)) &&
+        isValidOptionalString('turnaroundDays', 2, 40) &&
+        // Prices are whole US dollars; tokenCost / priceAud are optional legacy fields (pre USD-only)
+        (data.priceUsd is int && data.priceUsd >= 1 && data.priceUsd <= 50000) &&
+        isValidOptionalInt('tokenCost', 1, 100000) &&
+        isValidOptionalInt('priceAud', 1, 80000) &&
+        (data.city is string && data.city in validCities) &&
+        isValidOptionalString('sangkatDistrict', 2, 80) &&
+        (!('verifiedLicenseNo' in data) ||
+          (data.verifiedLicenseNo is string &&
+           data.verifiedLicenseNo.size() >= 5 &&
+           data.verifiedLicenseNo.size() <= 32 &&
+           data.verifiedLicenseNo.matches("^KH-[A-Z]{2,6}-[0-9]{4,8}$"))) &&
+        (!('contactTelegram' in data) ||
+          (data.contactTelegram is string &&
+           data.contactTelegram.size() >= 5 &&
+           data.contactTelegram.size() <= 33 &&
+           data.contactTelegram.matches("^@[A-Za-z0-9_]{4,32}$"))) &&
+        (!('contactPhoneKh' in data) ||
+          (data.contactPhoneKh is string &&
+           data.contactPhoneKh.size() >= 8 &&
+           data.contactPhoneKh.size() <= 16 &&
+           // "+855 12 990 112" (the app's format), "+85512990112" or "012 990 112"
+           data.contactPhoneKh.matches("^(\\+855 ?|0)[1-9][0-9 ]{7,11}$"))) &&
+        (!('rating' in data) || (data.rating is number && data.rating >= 1 && data.rating <= 5)) &&
+        isValidOptionalInt('reviewCount', 0, 100000) &&
+        isValidOptionalBool('isLockedFromCsv') &&
+        (!('imageUrls' in data) || isValidPostcardPhotos(data.imageUrls)) &&
+        (!('createdAt' in data) || isValidCreatedAt(data.createdAt)) &&
+        (!('updatedAt' in data) || isValidCreatedAt(data.updatedAt));
+    }
+
+    // 2. Validator for rentalListings/{rentalId}
+    function isValidRentalListing(data) {
+      let allowedFields = [
+        'id', 'title', 'propertyType', 'city', 'sangkat', 'district',
+        'priceUsdMonthly', 'priceAudMonthly', 'tokenDeposit',
+        'bedrooms', 'bathrooms', 'areaSqm', 'fpcsGuaranteed', 'fpcsReady',
+        'sangkatCertAssisted', 'edcRateKhr', 'imageUrl', 'badgeText',
+        'amenities', 'agentName', 'agentAgency', 'agentTelegram',
+        'agentContact', 'postcardStampCode', 'createdAt', 'updatedAt'
+      ];
+      let validPropertyTypes = [
+        'Condo', 'Serviced Apartment', 'Pool Villa', 'Shophouse Loft', 'Riverside Studio'
+      ];
+      let validCities = [
+        'Phnom Penh', 'Siem Reap', 'Sihanoukville', 'Kampot', 'Koh Rong', 'Battambang'
+      ];
+
+      return hasOnlyAllowedFields(allowedFields) &&
+        hasRequiredFields(['title', 'city', 'priceUsdMonthly', 'agentName']) &&
+        (('sangkat' in data) || ('district' in data)) &&
+        (('agentTelegram' in data) || ('agentContact' in data)) &&
+        (('fpcsGuaranteed' in data) || ('fpcsReady' in data)) &&
+        isValidOptionalString('id', 3, 40) &&
+        validStringLength('title', 5, 120) &&
+        (!('propertyType' in data) || (data.propertyType is string && data.propertyType in validPropertyTypes)) &&
+        (data.city is string && data.city in validCities) &&
+        isValidOptionalString('sangkat', 2, 80) &&
+        isValidOptionalString('district', 2, 80) &&
+        (data.priceUsdMonthly is int && data.priceUsdMonthly >= 100 && data.priceUsdMonthly <= 25000) &&
+        isValidOptionalInt('priceAudMonthly', 150, 40000) &&
+        // Optional legacy token deposit (pre USD-only)
+        isValidOptionalInt('tokenDeposit', 10, 100000) &&
+        isValidOptionalInt('bedrooms', 0, 12) &&
+        isValidOptionalInt('bathrooms', 1, 12) &&
+        isValidOptionalInt('areaSqm', 18, 2000) &&
+        isValidOptionalBool('fpcsGuaranteed') &&
+        isValidOptionalBool('fpcsReady') &&
+        isValidOptionalBool('sangkatCertAssisted') &&
+        isValidOptionalString('edcRateKhr', 1, 40) &&
+        (!('imageUrl' in data) || isValidUrl(data.imageUrl)) &&
+        isValidOptionalString('badgeText', 1, 50) &&
+        (!('amenities' in data) || isValidBoundedStringList(data.amenities, 1, 20, 50)) &&
+        validStringLength('agentName', 2, 80) &&
+        isValidOptionalString('agentAgency', 2, 80) &&
+        (!('agentTelegram' in data) ||
+          (data.agentTelegram is string &&
+           data.agentTelegram.size() >= 5 &&
+           data.agentTelegram.size() <= 33 &&
+           data.agentTelegram.matches("^@[A-Za-z0-9_]{4,32}$"))) &&
+        isValidOptionalString('agentContact', 3, 80) &&
+        (!('postcardStampCode' in data) ||
+          (data.postcardStampCode is string &&
+           data.postcardStampCode.size() >= 6 &&
+           data.postcardStampCode.size() <= 20 &&
+           data.postcardStampCode.matches("^KH-[A-Z0-9-]{3,16}$"))) &&
+        (!('createdAt' in data) || isValidCreatedAt(data.createdAt)) &&
+        (!('updatedAt' in data) || isValidCreatedAt(data.updatedAt));
+    }
+
+    // 3. Validator for postcardMessages/{messageId}
+    function isValidPostcardMessage(data) {
+      let allowedFields = [
+        'id', 'rentalId', 'rentalTitle', 'recipientAgent', 'assignedAgentUid',
+        'senderUid', 'senderName', 'senderEmail', 'telegramOrWhatsApp',
+        'currentVisaType', 'visaType', 'moveInDate', 'leaseDurationMonths',
+        'needsFpcsAndSangkat', 'message', 'createdAt'
+      ];
+      let validVisaTypes = [
+        'Visa E (Ordinary)', 'EB (Business/Work)', 'ER (Retirement)',
+        'CM2H (10-Yr Golden Visa)', 'Tourist (T) / Arriving Soon'
+      ];
+
+      return hasOnlyAllowedFields(allowedFields) &&
+        hasRequiredFields(['rentalId', 'senderName', 'senderEmail', 'moveInDate', 'message', 'createdAt']) &&
+        (('currentVisaType' in data) || ('visaType' in data)) &&
+        isValidOptionalString('id', 4, 32) &&
+        validStringLength('rentalId', 2, 64) &&
+        isValidOptionalString('rentalTitle', 2, 120) &&
+        isValidOptionalString('recipientAgent', 2, 80) &&
+        isValidOptionalString('assignedAgentUid', 1, 128) &&
+        (!('senderUid' in data) || (isAuthenticated() && data.senderUid == request.auth.uid)) &&
+        validStringLength('senderName', 2, 80) &&
+        isValidEmail(data.senderEmail) &&
+        isValidOptionalString('telegramOrWhatsApp', 3, 40) &&
+        (!('currentVisaType' in data) || (data.currentVisaType is string && data.currentVisaType in validVisaTypes)) &&
+        (!('visaType' in data) || (data.visaType is string && data.visaType in validVisaTypes)) &&
+        (data.moveInDate is string &&
+         data.moveInDate.size() == 10 &&
+         data.moveInDate.matches("^\\d{4}-\\d{2}-\\d{2}$")) &&
+        isValidOptionalInt('leaseDurationMonths', 1, 60) &&
+        isValidOptionalBool('needsFpcsAndSangkat') &&
+        validStringLength('message', 5, 1000) &&
+        isValidCreatedAt(data.createdAt);
+    }
+
+    // 4. Validator for techServiceInquiries/{inquiryId}
+    function isValidTechServiceInquiry(data) {
+      let allowedFields = [
+        'id', 'founderUid', 'founderName', 'companyOrStartup', 'companyName',
+        'email', 'telegramHandle', 'serviceStream', 'serviceCategory',
+        'teamSize', 'projectBrief', 'status', 'createdAt'
+      ];
+      let validStreams = [
+        'CamDX Single-Window Company Registration',
+        'NBC Bakong / KHQR Fintech API Integration',
+        'AI & Cloud Enterprise Digital Transformation',
+        'MLVT Foreign Quota & Tech Team Work Permits (FWCMS)',
+        'CDC Qualified Investment Project (QIP) Tax Holiday',
+        'Techo Startup Center & Venture Ecosystem Advisory'
+      ];
+      let validTeamSizes = ['Solo Founder', '2-10 Staff', '11-50 Staff', '50+ Enterprise'];
+      let validStatuses = ['new', 'reviewing', 'scheduled', 'archived'];
+
+      return hasOnlyAllowedFields(allowedFields) &&
+        hasRequiredFields(['founderName', 'email', 'projectBrief', 'createdAt']) &&
+        (('companyOrStartup' in data) || ('companyName' in data)) &&
+        (('serviceStream' in data) || ('serviceCategory' in data)) &&
+        isValidOptionalString('id', 4, 32) &&
+        (!('founderUid' in data) || (isAuthenticated() && data.founderUid == request.auth.uid)) &&
+        validStringLength('founderName', 2, 80) &&
+        isValidOptionalString('companyOrStartup', 2, 100) &&
+        isValidOptionalString('companyName', 2, 100) &&
+        isValidEmail(data.email) &&
+        isValidOptionalString('telegramHandle', 2, 40) &&
+        (!('serviceStream' in data) || (data.serviceStream is string && data.serviceStream in validStreams)) &&
+        (!('serviceCategory' in data) || (data.serviceCategory is string && data.serviceCategory in validStreams)) &&
+        (!('teamSize' in data) || (data.teamSize is string && data.teamSize in validTeamSizes)) &&
+        validStringLength('projectBrief', 10, 1500) &&
+        (!('status' in data) || (data.status is string && data.status in validStatuses)) &&
+        isValidCreatedAt(data.createdAt);
+    }
+
+    // 5. Validator for communityPosts/{postId}
+    function isValidCommunityPost(data) {
+      let allowedFields = [
+        'id', 'authorUid', 'authorName', 'authorRole', 'hubLocation',
+        'category', 'title', 'summary', 'content', 'eventDate',
+        'attendeesCount', 'imageUrls', 'createdAt'
+      ];
+      let validCategories = [
+        'Meetup & Hackathon', 'Founder Q&A', 'AI & DevOps',
+        'Fintech & Bakong', 'Co-Living & Nomads'
+      ];
+
+      return hasOnlyAllowedFields(allowedFields) &&
+        hasRequiredFields(['authorUid', 'authorName', 'authorRole', 'category', 'title', 'createdAt']) &&
+        (('summary' in data) || ('content' in data)) &&
+        isValidOptionalString('id', 4, 32) &&
+        validStringLength('authorUid', 1, 128) &&
+        validStringLength('authorName', 2, 80) &&
+        validStringLength('authorRole', 2, 80) &&
+        isValidOptionalString('hubLocation', 2, 80) &&
+        (data.category is string && data.category in validCategories) &&
+        validStringLength('title', 5, 140) &&
+        isValidOptionalString('summary', 10, 2000) &&
+        isValidOptionalString('content', 10, 2000) &&
+        isValidOptionalString('eventDate', 2, 40) &&
+        isValidOptionalInt('attendeesCount', 1, 5000) &&
+        (!('imageUrls' in data) || isValidPostcardPhotos(data.imageUrls)) &&
+        isValidCreatedAt(data.createdAt);
+    }
+
+    // 6. Validator for merchantProfiles/{merchantId}
+    function isValidMerchantProfile(data) {
+      let allowedFields = [
+        'id', 'merchantUid', 'businessName', 'contact', 'city', 'addressLine',
+        'geo', 'locationSource', 'locationUpdatedAt', 'createdAt'
+      ];
+      let validCities = [
+        'Phnom Penh', 'Siem Reap', 'Sihanoukville', 'Kampot', 'Koh Rong', 'Battambang'
+      ];
+
+      return hasOnlyAllowedFields(allowedFields) &&
+        hasRequiredFields(['merchantUid', 'businessName', 'contact', 'city', 'addressLine', 'locationSource', 'locationUpdatedAt']) &&
+        isValidOptionalString('id', 4, 32) &&
+        validStringLength('merchantUid', 1, 128) &&
+        validStringLength('businessName', 2, 80) &&
+        validStringLength('contact', 3, 80) &&
+        (data.city is string && data.city in validCities) &&
+        validStringLength('addressLine', 2, 100) &&
+        (data.locationSource is string && data.locationSource in ['auto-detected', 'manual']) &&
+        (!('geo' in data) ||
+          (data.geo is map &&
+           data.geo.keys().hasOnly(['lat', 'lng', 'accuracyM']) &&
+           data.geo.keys().hasAll(['lat', 'lng', 'accuracyM']) &&
+           data.geo.lat is number && data.geo.lat >= -90 && data.geo.lat <= 90 &&
+           data.geo.lng is number && data.geo.lng >= -180 && data.geo.lng <= 180 &&
+           data.geo.accuracyM is number && data.geo.accuracyM >= 0 && data.geo.accuracyM <= 100000)) &&
+        isTimeValue(data.locationUpdatedAt) &&
+        (!('createdAt' in data) || isTimeValue(data.createdAt));
+    }
+
+    // 7. Validator for merchantOffers/{offerId}
+    function isValidMerchantOffer(data) {
+      let allowedFields = [
+        'id', 'merchantId', 'merchantUid', 'businessName', 'contact', 'city',
+        'addressLine', 'category', 'headline', 'dealBadge', 'message',
+        'imageUrl', 'linkedInPulseUrl', 'postcardStampCode', 'createdAt', 'updatedAt'
+      ];
+      let validCategories = [
+        'visa_services', 'licences', 'documents_printing', 'travel_insurance',
+        'hotels_hostels', 'rental_accommodation',
+        'phone_service', 'wifi_service', 'coworking', 'repairs',
+        'taxis_transfers', 'bus_boat_tickets', 'car_hire', 'motorcycle_rentals',
+        'restaurants', 'bars_nightlife',
+        'health_clinics', 'massage', 'beauty_salons', 'fitness',
+        'tours_transport', 'classes_experiences', 'diving_watersports', 'shopping_souvenirs',
+        'money_exchange', 'laundry', 'courier_shipping', 'other'
+      ];
+      let validCities = [
+        'Phnom Penh', 'Siem Reap', 'Sihanoukville', 'Kampot', 'Koh Rong', 'Battambang'
+      ];
+
+      return hasOnlyAllowedFields(allowedFields) &&
+        hasRequiredFields([
+          'merchantId', 'merchantUid', 'businessName', 'contact', 'city', 'addressLine',
+          'category', 'headline', 'dealBadge', 'message', 'postcardStampCode', 'createdAt'
+        ]) &&
+        isValidOptionalString('id', 4, 32) &&
+        validStringLength('merchantId', 4, 32) &&
+        validStringLength('merchantUid', 1, 128) &&
+        validStringLength('businessName', 2, 80) &&
+        validStringLength('contact', 3, 80) &&
+        (data.city is string && data.city in validCities) &&
+        validStringLength('addressLine', 2, 100) &&
+        (data.category is string && data.category in validCategories) &&
+        validStringLength('headline', 5, 100) &&
+        validStringLength('dealBadge', 2, 24) &&
+        validStringLength('message', 10, 500) &&
+        // Postcard photos are 16:9 uploads hosted on imgbb
+        (!('imageUrl' in data) || (isValidUrl(data.imageUrl) && data.imageUrl.matches("^https://i\\.ibb\\.co/.+$"))) &&
+        (!('linkedInPulseUrl' in data) || isValidLinkedInPulseUrl(data.linkedInPulseUrl)) &&
+        (data.postcardStampCode is string &&
+         data.postcardStampCode.size() >= 6 &&
+         data.postcardStampCode.size() <= 20 &&
+         data.postcardStampCode.matches("^KH-[A-Z0-9-]{3,16}$")) &&
+        isTimeValue(data.createdAt) &&
+        (!('updatedAt' in data) || isTimeValue(data.updatedAt));
+    }
+
+    // 8. Validator for userProfiles/{uid} (registered people; contains PII)
+    function isValidUserProfile(data) {
+      let allowedFields = [
+        'id', 'name', 'email', 'phone', 'telegram', 'address', 'location',
+        'role', 'merchantId', 'merchantBusiness', 'registeredAt', 'updatedAt'
+      ];
+      return hasOnlyAllowedFields(allowedFields) &&
+        hasRequiredFields(['id', 'name', 'email', 'phone', 'telegram', 'location', 'role', 'registeredAt']) &&
+        validStringLength('id', 1, 128) &&
+        validStringLength('name', 2, 80) &&
+        isValidEmail(data.email) &&
+        (data.phone is string && data.phone.size() >= 8 && data.phone.size() <= 24 &&
+         data.phone.matches("^\\+?[0-9 ()-]+$")) &&
+        (data.telegram is string && data.telegram.matches("^@[A-Za-z][A-Za-z0-9_]{3,31}$")) &&
+        isValidOptionalString('address', 1, 160) &&
+        (data.location is map &&
+         data.location.keys().hasOnly(['label', 'source', 'lat', 'lng', 'accuracyM']) &&
+         data.location.label is string && data.location.label.size() >= 2 && data.location.label.size() <= 120 &&
+         data.location.source in ['auto-detected', 'manual'] &&
+         (!('lat' in data.location) || (data.location.lat is number && data.location.lat >= -90 && data.location.lat <= 90)) &&
+         (!('lng' in data.location) || (data.location.lng is number && data.location.lng >= -180 && data.location.lng <= 180))) &&
+        data.role in ['traveller', 'merchant'] &&
+        isValidOptionalString('merchantId', 4, 32) &&
+        (!('merchantBusiness' in data) ||
+          (data.merchantBusiness is map &&
+           data.merchantBusiness.keys().hasOnly(['id', 'businessName', 'contact', 'city', 'addressLine', 'geo', 'locationSource', 'locationUpdatedAt']) &&
+           data.merchantBusiness.businessName is string && data.merchantBusiness.businessName.size() <= 80 &&
+           data.merchantBusiness.addressLine is string && data.merchantBusiness.addressLine.size() <= 100)) &&
+        isTimeValue(data.registeredAt) &&
+        (!('updatedAt' in data) || isTimeValue(data.updatedAt));
+    }
+
+    // 9. Validator for merchantReviews/{reviewId}
+    function isValidMerchantReview(data) {
+      let allowedFields = [
+        'id', 'merchantId', 'reviewerUid', 'reviewerName', 'rating', 'comment',
+        'status', 'createdAt', 'moderatedAt', 'moderatedBy'
+      ];
+      return hasOnlyAllowedFields(allowedFields) &&
+        hasRequiredFields(['merchantId', 'reviewerUid', 'reviewerName', 'rating', 'comment', 'status', 'createdAt']) &&
+        isValidOptionalString('id', 4, 32) &&
+        validStringLength('merchantId', 4, 32) &&
+        validStringLength('reviewerUid', 1, 128) &&
+        validStringLength('reviewerName', 1, 40) &&
+        (data.rating is int && data.rating >= 1 && data.rating <= 5) &&
+        validStringLength('comment', 10, 600) &&
+        data.status in ['pending', 'approved', 'rejected'] &&
+        isTimeValue(data.createdAt) &&
+        (!('moderatedAt' in data) || isTimeValue(data.moderatedAt)) &&
+        isValidOptionalString('moderatedBy', 1, 128);
+    }
+
+    // 10. Validator for merchantMessages/{messageId}
+    function isValidMerchantMessage(data) {
+      let allowedFields = [
+        'id', 'merchantId', 'merchantUid', 'userId', 'userName', 'offerId', 'offerHeadline',
+        'from', 'body', 'sentAt', 'readByRecipient'
+      ];
+      return hasOnlyAllowedFields(allowedFields) &&
+        hasRequiredFields(['merchantId', 'merchantUid', 'userId', 'userName', 'from', 'body', 'sentAt', 'readByRecipient']) &&
+        isValidOptionalString('id', 4, 32) &&
+        validStringLength('merchantId', 4, 32) &&
+        validStringLength('merchantUid', 1, 128) &&
+        validStringLength('userId', 1, 128) &&
+        validStringLength('userName', 1, 80) &&
+        isValidOptionalString('offerId', 4, 32) &&
+        isValidOptionalString('offerHeadline', 1, 120) &&
+        data.from in ['user', 'merchant'] &&
+        validStringLength('body', 1, 1000) &&
+        isTimeValue(data.sentAt) &&
+        data.readByRecipient is bool;
+    }
+
+    // An offer may only be posted under a merchant profile owned by the requester
+    function ownsMerchantProfile(merchantId) {
+      return exists(/databases/$(database)/documents/merchantProfiles/$(merchantId)) &&
+        get(/databases/$(database)/documents/merchantProfiles/$(merchantId)).data.merchantUid == request.auth.uid;
+    }
+
+    // ===============================================================
+    // Collection Match Rules
+    // ===============================================================
+
+    // 1. Agent Service Marketplace Listings
+    match /agentServices/{serviceId} {
+      // Public read access for marketplace catalog browsing
+      allow read: if true;
+
+      // Create restricted to Superadmin or Verified Agent creating their own listing
+      allow create: if isValidAgentService(request.resource.data) &&
+        (isSuperAdmin() ||
+         (isVerifiedAgent() &&
+          ('agentUid' in request.resource.data) &&
+          request.resource.data.agentUid == request.auth.uid &&
+          (!('isLockedFromCsv' in request.resource.data) || request.resource.data.isLockedFromCsv == false)));
+
+      // Update restricted to Superadmin or Verified Agent owning the listing (if not CSV-locked)
+      allow update: if isValidAgentService(request.resource.data) &&
+        areImmutableFieldsUnchanged(['id', 'agentUid', 'createdAt']) &&
+        (isSuperAdmin() ||
+         (isVerifiedAgent() &&
+          ('agentUid' in resource.data) &&
+          resource.data.agentUid == request.auth.uid &&
+          (!('isLockedFromCsv' in resource.data) || resource.data.isLockedFromCsv == false) &&
+          areImmutableFieldsUnchanged(['isLockedFromCsv', 'rating', 'reviewCount'])));
+
+      // Delete restricted to Superadmin or Verified Agent owning an unlocked listing
+      allow delete: if isSuperAdmin() ||
+        (isVerifiedAgent() &&
+         ('agentUid' in resource.data) &&
+         resource.data.agentUid == request.auth.uid &&
+         (!('isLockedFromCsv' in resource.data) || resource.data.isLockedFromCsv == false));
+    }
+
+    // 2. Cambodia Rental Gallery Listings
+    match /rentalListings/{rentalId} {
+      // Public read access for Condo & Villa Rentals Gallery
+      allow read: if true;
+
+      // Create, update, delete strictly restricted to Superadmin
+      allow create: if isSuperAdmin() &&
+        isValidRentalListing(request.resource.data);
+
+      allow update: if isSuperAdmin() &&
+        isValidRentalListing(request.resource.data) &&
+        areImmutableFieldsUnchanged(['id', 'createdAt']);
+
+      allow delete: if isSuperAdmin();
+    }
+
+    // 3. Rental Message Agent Postcard Inquiries (Contains PII)
+    match /postcardMessages/{messageId} {
+      // Public or authenticated users can submit a postcard inquiry with strict schema & size checks
+      allow create: if isValidPostcardMessage(request.resource.data);
+
+      // Read & Delete strictly restricted to Superadmin or the assigned verified agent
+      allow read, delete: if isSuperAdmin() ||
+        (isVerifiedAgent() &&
+         ('assignedAgentUid' in resource.data) &&
+         resource.data.assignedAgentUid == request.auth.uid);
+
+      // Postcard messages are immutable inquiries once dispatched
+      allow update: if false;
+    }
+
+    // 4. Digital Transformation & Tech Entrepreneur Inquiries (Contains PII)
+    match /techServiceInquiries/{inquiryId} {
+      // Founders can submit inquiries with strict field & size validation
+      allow create: if isValidTechServiceInquiry(request.resource.data);
+
+      // Read, update, and delete strictly restricted to Superadmin
+      allow read, delete: if isSuperAdmin();
+
+      allow update: if isSuperAdmin() &&
+        isValidTechServiceInquiry(request.resource.data) &&
+        areImmutableFieldsUnchanged(['id', 'founderUid', 'email', 'createdAt']);
+    }
+
+    // 5. Cambodia Tech Community Hub Posts & Events
+    match /communityPosts/{postId} {
+      // Public read access for community events and founder posts (no PII permitted in schema)
+      allow read: if true;
+
+      // Authenticated community members can create posts bound to their own UID
+      allow create: if isAuthenticated() &&
+        isValidCommunityPost(request.resource.data) &&
+        request.resource.data.authorUid == request.auth.uid;
+
+      // Only the post author or Superadmin can update, enforcing full validator & immutable fields
+      allow update: if isAuthenticated() &&
+        (isSuperAdmin() ||
+         (('authorUid' in resource.data) && resource.data.authorUid == request.auth.uid)) &&
+        isValidCommunityPost(request.resource.data) &&
+        areImmutableFieldsUnchanged(['id', 'authorUid', 'createdAt']);
+
+      // Only the post author or Superadmin can delete
+      allow delete: if isSuperAdmin() ||
+        (isAuthenticated() &&
+         ('authorUid' in resource.data) &&
+         resource.data.authorUid == request.auth.uid);
+    }
+
+    // 6. Merchant Profiles (public business listing; location auto-detected, then adjustable)
+    match /merchantProfiles/{merchantId} {
+      allow read: if true;
+
+      // A verified merchant registers their own profile only
+      allow create: if isVerifiedMerchant() &&
+        isValidMerchantProfile(request.resource.data) &&
+        request.resource.data.merchantUid == request.auth.uid &&
+        isValidCreatedAt(request.resource.data.locationUpdatedAt) &&
+        (!('createdAt' in request.resource.data) || isValidCreatedAt(request.resource.data.createdAt));
+
+      // Owner or Superadmin; a location change must carry a fresh locationUpdatedAt
+      allow update: if (isSuperAdmin() ||
+          (isVerifiedMerchant() && resource.data.merchantUid == request.auth.uid)) &&
+        isValidMerchantProfile(request.resource.data) &&
+        areImmutableFieldsUnchanged(['id', 'merchantUid', 'createdAt']) &&
+        (!request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['city', 'addressLine', 'geo', 'locationSource', 'locationUpdatedAt']) ||
+          isValidCreatedAt(request.resource.data.locationUpdatedAt));
+
+      allow delete: if isSuperAdmin() ||
+        (isVerifiedMerchant() && resource.data.merchantUid == request.auth.uid);
+    }
+
+    // 7. Merchant Offer Postcards (public board; share links resolve via ?offer={offerId})
+    match /merchantOffers/{offerId} {
+      allow read: if true;
+
+      // Verified merchants post under their own profile only
+      allow create: if isVerifiedMerchant() &&
+        isValidMerchantOffer(request.resource.data) &&
+        request.resource.data.merchantUid == request.auth.uid &&
+        ownsMerchantProfile(request.resource.data.merchantId) &&
+        isValidCreatedAt(request.resource.data.createdAt);
+
+      // Owner (incl. the batched city/address rewrite after a location change) or Superadmin
+      allow update: if (isSuperAdmin() ||
+          (isVerifiedMerchant() && resource.data.merchantUid == request.auth.uid)) &&
+        isValidMerchantOffer(request.resource.data) &&
+        areImmutableFieldsUnchanged(['id', 'merchantId', 'merchantUid', 'createdAt']);
+
+      allow delete: if isSuperAdmin() ||
+        (isVerifiedMerchant() && resource.data.merchantUid == request.auth.uid);
+    }
+
+    // 8. Registered people (PII) — Google sign-in uid is the document ID
+    match /userProfiles/{uid} {
+      allow read: if isOwner(uid) || isSuperAdmin();
+
+      // People register themselves; the email must be their Google account's
+      allow create: if isOwner(uid) &&
+        isValidUserProfile(request.resource.data) &&
+        request.resource.data.id == uid &&
+        request.resource.data.email == request.auth.token.email.lower() &&
+        isValidCreatedAt(request.resource.data.registeredAt);
+
+      // Role and merchant link can't be self-changed; only the superadmin can change them
+      allow update: if (isOwner(uid) || isSuperAdmin()) &&
+        isValidUserProfile(request.resource.data) &&
+        areImmutableFieldsUnchanged(['id', 'email', 'registeredAt']) &&
+        (isSuperAdmin() || areImmutableFieldsUnchanged(['role', 'merchantId']));
+
+      allow delete: if isOwner(uid) || isSuperAdmin();
+    }
+
+    // 9. Merchant reviews — published only after superadmin approval
+    match /merchantReviews/{reviewId} {
+      // Approved reviews are public; reviewers see their own; the superadmin sees the queue
+      allow read: if resource.data.status == 'approved' ||
+        isSuperAdmin() ||
+        (isAuthenticated() && resource.data.reviewerUid == request.auth.uid);
+
+      // Registered people review any business except their own; every review starts pending
+      allow create: if isAuthenticated() &&
+        isValidMerchantReview(request.resource.data) &&
+        request.resource.data.reviewerUid == request.auth.uid &&
+        request.resource.data.status == 'pending' &&
+        !('moderatedAt' in request.resource.data) &&
+        !('moderatedBy' in request.resource.data) &&
+        isValidCreatedAt(request.resource.data.createdAt) &&
+        exists(/databases/$(database)/documents/merchantProfiles/$(request.resource.data.merchantId)) &&
+        !ownsMerchantProfile(request.resource.data.merchantId);
+
+      // Only the superadmin moderates; the review itself can't be edited
+      allow update: if isSuperAdmin() &&
+        isValidMerchantReview(request.resource.data) &&
+        areImmutableFieldsUnchanged(['id', 'merchantId', 'reviewerUid', 'reviewerName', 'rating', 'comment', 'createdAt']);
+
+      allow delete: if isSuperAdmin();
+    }
+
+    // 10. Private messages between a registered person and a merchant
+    match /merchantMessages/{messageId} {
+      // Only the two participants (and the superadmin) can read a conversation
+      allow read: if isSuperAdmin() ||
+        (isAuthenticated() &&
+         (resource.data.userId == request.auth.uid || resource.data.merchantUid == request.auth.uid));
+
+      // People write as themselves; merchants reply only for a business they own
+      allow create: if isAuthenticated() &&
+        isValidMerchantMessage(request.resource.data) &&
+        request.resource.data.readByRecipient == false &&
+        isValidCreatedAt(request.resource.data.sentAt) &&
+        ((request.resource.data.from == 'user' && request.resource.data.userId == request.auth.uid) ||
+         (request.resource.data.from == 'merchant' &&
+          request.resource.data.merchantUid == request.auth.uid &&
+          ownsMerchantProfile(request.resource.data.merchantId)));
+
+      // The recipient may only mark a message as read
+      allow update: if isAuthenticated() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readByRecipient']) &&
+        request.resource.data.readByRecipient == true &&
+        ((resource.data.from == 'merchant' && resource.data.userId == request.auth.uid) ||
+         (resource.data.from == 'user' && resource.data.merchantUid == request.auth.uid));
+
+      allow delete: if isSuperAdmin();
+    }
+
+    // 11. Supporter token wallets — 1 token = US$1, never expire. Written only by Cloud Functions
+    //     (Admin SDK bypasses these rules): onSupporterCreated at a first Google log-in, and the
+    //     Stripe webhook after a confirmed payment. Nobody can set their own balance.
+    match /tokenWallets/{uid} {
+      allow read: if isOwner(uid) || isSuperAdmin();
+      allow write: if false;
+    }
+
+    // 12. Token purchases (one per Stripe Checkout Session) — the buyer's own receipts
+    match /tokenPurchases/{checkoutSessionId} {
+      allow read: if isSuperAdmin() ||
+        (isAuthenticated() && resource.data.uid == request.auth.uid);
+      allow write: if false;
+    }
+
+    // 13. Default Deny All Other Paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,236 @@
+================================================================================
+ISO/IEC 42001:2023 (+ ISO/IEC 42005:2025) AI MANAGEMENT SYSTEM (AIMS) LEDGER
+================================================================================
+Application Name       : I Want A Visa (Cambodia Hub - www.iwantavisa.com)
+Standard Version       : ISO/IEC 42001:2023 with ISO/IEC 42005:2025 AI Impact Assessment
+Last Updated           : 2026-11-26
+AIMS Scope             : AI transformation advisory, automated matchmaking algorithms, distance & review ranking engine, multi-model AI agent deployment directives, and prompt governance for future LLM integration.
+Organizational AI Role : AI Customer / Deployer & Advisory Platform (Deploying algorithmic ranking, architecting lightweight multi-model AI agent workflows on Gemini Flash-Lite, Claude Haiku, and gpt-6-luna).
+
+--------------------------------------------------------------------------------
+1. WHOLE-APP AIMS ARCHITECTURE & AI GOVERNANCE POSTURE
+--------------------------------------------------------------------------------
+- AI System Policies & Boundaries (A.2):
+  * The platform operates under a strict "Human-in-the-Loop" (HITL) and "Advisory-Only" policy.
+  * No automated decision-making (ADM) executes irrevocable legal, financial, or visa actions without explicit user confirmation and verified human agent involvement.
+  * Directives require all AI processes, skills, and agents to remain fully compatible with low-cost, high-efficiency models that allow MCP (Gemini 3.5 Flash-Lite, Claude Haiku 4.5, gpt-6-luna).
+
+- Internal Organisation & Accountability (A.3):
+  * Overall AI governance and model safety accountability rests with the Superadmin and Platform Lead.
+  * Technical issues, hallucinations, or biased ranking reports can be escalated directly through the admin feedback loop.
+
+- Resources for AI Systems (A.4):
+  * Algorithms & Models in Scope:
+    1. Distance-Proximity & Keyword Matching Engine (deterministic ranking model; src/lib/search.ts, src/lib/geo.ts).
+    2. Bayesian Average Review Scorer (statistical rating model; src/lib/reviews.ts).
+    3. Multi-Model Advisory Workflows (architecture specifications for Gemini Flash-Lite, Claude Haiku, open-weights; src/data/cambodiaData.ts).
+    4. Client-Side Image Crop Pre-processing (deterministic computer vision scaling; src/lib/images.ts).
+  * Infrastructure: Google Cloud Platform / Firebase serverless edge; zero local model training or heavy GPU clusters, ensuring low carbon footprint and adherence to ISO/IEC 27001 Amendment 1:2024.
+
+- Assessing Impacts of AI Systems (A.5 / Clauses 6.1.4 & 8.4; ISO/IEC 42005):
+  * Individual Impact: Low risk. The application does not issue visas or deny entry; it recommends accredited agents, accommodation, and official government links.
+  * Group / Bias Impact: Minimized. Ranking algorithms combine distance (50%), query relevance (30%), and verified reviews (20%) deterministically without demographic, racial, or nationality scoring bias.
+  * Societal Impact: Positive economic contribution by connecting local Cambodian merchants, drivers, translators, and verified agents with international digital nomads and tech founders.
+
+- AI System Life Cycle & Technical Guardrails (A.6 & A.9):
+  * Schema-Locked I/O: All inputs and outputs adhere to strict Zod and JSON schema contracts (`additionalProperties: false`) preventing hallucinated field injection (data-contracts.MD).
+  * Rate-Limiting & Cost Caps: Supporter tokens use strict positive integers; external API calls (e.g. Frankfurter FX, ImgBB) are throttled and cached to prevent resource exhaustion.
+  * Graceful Fallbacks: Search defaults to full category listing if query tokens are empty or unrecognized; FX defaults to 4,050 KHR if network fails.
+
+- Data for AI Systems (A.7):
+  * Provenance: Official legal, visa, and corporate registration data sourced exclusively from Cambodian government portals (CamDX, FPCS, Ministry of Foreign Affairs, MPWT).
+  * Privacy: Zero private user messages or personal relocation details are fed into third-party AI training sets.
+
+- Information for Interested Parties (A.8):
+  * Transparency: Algorithmic ranking weights (proximity 0.5, service 0.3, reviews 0.2) are published and documented openly in source code (src/lib/search.ts) and system ledgers, conforming to Australian Privacy Act ADM transparency principles.
+  * Content Disclosures: Community advisory guides disclose technical architectures and AI agent integration patterns clearly.
+
+- Third-Party & Vendor Ecosystem (A.10):
+  * Cloud infrastructure provided by Google Cloud Platform.
+  * Payments handled by Stripe; images handled by ImgBB.
+  * Model recommendations explicitly specify provider boundaries (Google Gemini API, Anthropic Claude API) without client credential exposure.
+
+--------------------------------------------------------------------------------
+2. MASTER STATEMENT OF APPLICABILITY (SoA) SUMMARY (ANNEX A - 38 CONTROLS)
+--------------------------------------------------------------------------------
+[A.2 Policies Related to AI (3 controls)]
+  Status  : Implemented
+  Summary : AI governance policies prioritize human oversight, safety bounds, and low-cost MCP model compatibility across all automated and agentic workflows.
+
+[A.3 Internal Organisation (2 controls)]
+  Status  : Implemented
+  Summary : Superadmin roles maintain operational responsibility for algorithmic outcomes, review moderation, and inquiry review.
+
+[A.4 Resources for AI Systems (5 controls)]
+  Status  : Implemented
+  Summary : Inventory maintained for all algorithmic scoring components, prompt contracts, and target LLM runtime profiles.
+
+[A.5 Assessing Impacts of AI Systems (4 controls)]
+  Status  : Implemented (ISO/IEC 42005 compliant)
+  Summary : Continuous impact assessment covering personal privacy, bias mitigation in merchant search, and ethical AI transformation consulting.
+
+[A.6 AI System Life Cycle (9 controls)]
+  Status  : Implemented
+  Summary : Strict schema validation on inputs/outputs, unit-tested ranking logic, deterministic fallbacks, and human verification before critical state mutations.
+
+[A.7 Data for AI Systems (5 controls)]
+  Status  : Implemented
+  Summary : Data minimization enforced; zero PII leakage to external training sets; official government sources used for legal guides.
+
+[A.8 Information for Interested Parties (4 controls)]
+  Status  : Implemented
+  Summary : Transparent disclosure of algorithmic ranking criteria and clear distinction between static government data and community recommendations.
+
+[A.9 Use of AI Systems (3 controls)]
+  Status  : Implemented
+  Summary : Technical guardrails enforce rate limits, integer token economy caps, and defensive input sanitization against prompt injection.
+
+[A.10 Third-Party & Customer Relationships (3 controls)]
+  Status  : Implemented
+  Summary : Explicit vendor boundaries and responsibilities defined for cloud hosting, payment gateways, and external API providers.
+
+--------------------------------------------------------------------------------
+3. FEATURE-BY-FEATURE ISO 42001 & AI IMPACT MATRIX
+--------------------------------------------------------------------------------
+
+FEATURE: Need Search & Algorithmic Ranking Engine
+  Code Modules / Files : src/lib/search.ts, src/lib/geo.ts, src/components/NeedSearchBar.tsx, src/components/CategoriesPage.tsx
+  AI Role              : AI Deployer / Algorithmic Decision-Making (ADM)
+  AI Impact Level      : Low / Moderate (Merchant Discovery & Business Visibility)
+
+  Controls Met & Implementation Evidence:
+    - A.5.2 AI Impact Assessment: Risk of unfair commercial visibility bias addressed by combining multi-factor scoring: proximity (0.5), keyword match (0.3), and Bayesian review score (0.2).
+    - A.6.3 Verification & Validation: Algorithmic functions (`tokenizeNeed`, `detectNeedCategories`, `bayesianRating`) are pure, deterministic TypeScript functions with comprehensive stop-word filtering.
+    - A.8.2 System Transparency: Explicit ranking criteria documented and accessible; merchants can view and update their geolocation to accurately reflect service proximity.
+    - A.9.2 Technical Guardrails: Search query input normalized (accent stripping, punctuation removal, length checks) to prevent injection and memory saturation.
+
+  Controls Not Affected & Justification:
+    - A.4.2 Compute Resources: Uses lightweight mathematical formulas (Haversine formula, Bayesian mean) running client-side with near-zero CPU and zero external model API overhead.
+
+  Residual Risks & Human/Organizational Actions Required:
+    - Regularly audit stop-word lists and merchant category keywords for emerging travel and nomad terminology.
+
+--------------------------------------------------------------------------------
+
+FEATURE: Bayesian Review Scoring & Sentiment Engine
+  Code Modules / Files : src/lib/reviews.ts, src/components/ReviewModerationPanel.tsx, src/components/MerchantReviewsDialog.tsx
+  AI Role              : Algorithmic Scorer with Human-in-the-Loop (HITL)
+  AI Impact Level      : Low (Reputation Management)
+
+  Controls Met & Implementation Evidence:
+    - A.6.7 Human Oversight (HITL): Automated Bayesian score calculation does NOT publish unvetted reviews automatically; all user reviews require explicit Superadmin approval before entering the scoring pool.
+    - A.5.3 Bias Prevention: Bayesian formula applies prior confidence (`C = 3`, `m = 4.2`) smoothing out malicious 1-star brigading or astroturfed 5-star manipulation on low-volume listings.
+    - A.7.4 Data Quality: Ratings constrained strictly to integer values 1..5.
+
+  Controls Not Affected & Justification:
+    - A.4.4 Training Data: No machine learning model is trained on review texts; purely statistical Bayesian inference.
+
+  Residual Risks & Human/Organizational Actions Required:
+    - Ongoing human moderation by Superadmin to ensure fair treatment of disputed reviews.
+
+--------------------------------------------------------------------------------
+
+FEATURE: Digital Transformation & AI Advisory Services
+  Code Modules / Files : src/components/DigitalTechCommunityHub.tsx, src/data/cambodiaData.ts, src/types/contracts.ts
+  AI Role              : AI Advisory & Architecture Design (Promoting Low-Cost MCP Stacks)
+  AI Impact Level      : Low / Informational (Enterprise Modernization Advice)
+
+  Controls Met & Implementation Evidence:
+    - A.2.1 AI Strategy & Acceptable Use: Advisory curriculum explicitly advocates ethical, low-cost, multi-model AI architectures (Gemini 3.5 Flash-Lite, Claude Haiku, open-weights) with local Cambodian payment rails (KHQR/Bakong).
+    - A.8.1 User Information: Advisory pillars disclose intended use cases, technical limitations, and security boundaries (e.g. air-gapping financial records from public LLM APIs).
+    - A.6.5 Safe System Boundaries: Client inquiries submitted via `TechServiceInquirySchema` collect project briefs securely for human review; no automated AI agent generates legally binding corporate advice.
+
+  Controls Not Affected & Justification:
+    - A.9.1 Model Monitoring: Currently advisory and curriculum-based; no autonomous LLM inference executes within this component today.
+
+  Residual Risks & Human/Organizational Actions Required:
+    - Ensure advisory consultants verify client data governance before deploying production AI agents in Cambodian enterprises.
+
+--------------------------------------------------------------------------------
+
+FEATURE: Agent Marketplace & Visa Recommendation Flow
+  Code Modules / Files : src/components/AgentMarketplace.tsx, src/components/CambodiaGuidesHub.tsx
+  AI Role              : Deterministic Expert Rule System (Not AI-Affected / Rule-Based)
+  AI Impact Level      : Low (Informational Matching)
+
+  Controls Met & Implementation Evidence:
+    - A.6.3 System Validation: Visa guidance and agent matchmaking follow deterministic government immigration criteria (Ordinary E-class, EB, ER, EG, EP visa extensions).
+    - A.8.2 Transparency: Clear distinction provided between verified licensed agents (MOC/GDebt verified) and community guides.
+
+  Controls Not Affected & Justification:
+    - A.4 Resources for AI Systems: Pure deterministic category filtering; no generative AI or autonomous decision agent is used.
+
+  Residual Risks & Human/Organizational Actions Required:
+    - Maintain up-to-date mappings with official General Department of Immigration (GDI) policy circulars.
+
+--------------------------------------------------------------------------------
+
+FEATURE: Supporter Token Economy & Stripe Checkout
+  Code Modules / Files : src/lib/tokens.ts, functions/src/index.ts, functions/src/tokenRules.ts
+  AI Role              : Not AI-Affected (Financial Transaction Processing)
+  AI Impact Level      : Zero AI Risk (Strict Mathematical & Cryptographic Logic)
+
+  Controls Met & Implementation Evidence:
+    - A.9.2 Guardrails: Token purchases strictly locked to integer packs (10, 50, 100) at $1/token; zero automated pricing or dynamic algorithmic surge charging.
+    - A.6.5 Verification: Token balance updates executed strictly via server-side cryptographic webhook confirmation.
+
+  Controls Not Affected & Justification:
+    - A.5 AI Impact: No AI or machine learning models participate in billing, pricing, or balance calculations.
+
+  Residual Risks & Human/Organizational Actions Required:
+    - Routine financial reconciliation between Stripe dashboard and Firestore token wallets.
+
+--------------------------------------------------------------------------------
+
+FEATURE: Private Messaging & Inquiry Channels
+  Code Modules / Files : src/components/MessagesDialog.tsx, src/lib/messages.ts, firestore.rules
+  AI Role              : Not AI-Affected (Direct Human Communications)
+  AI Impact Level      : Zero AI Risk (Human-to-Human Communication)
+
+  Controls Met & Implementation Evidence:
+    - A.7.1 Data Protection: Direct user-to-merchant and tenant-to-agent communications are confidential and completely excluded from any AI model training or indexing corpus.
+
+  Controls Not Affected & Justification:
+    - A.6 AI Life Cycle: Pure transport of human messages; no automated AI chat bots or auto-responders active.
+
+  Residual Risks & Human/Organizational Actions Required:
+    - Ensure privacy policy affirms that private messages are never processed by external LLMs without user consent.
+
+--------------------------------------------------------------------------------
+
+FEATURE: Photo Upload & Client-Side 16:9 Aspect Crop
+  Code Modules / Files : src/lib/images.ts, src/lib/imgbb.ts, src/components/PhotosUploadField.tsx
+  AI Role              : Deterministic Computer Vision / Canvas Pre-processing
+  AI Impact Level      : Zero AI Risk
+
+  Controls Met & Implementation Evidence:
+    - A.6.3 Verification: Offscreen HTML5 Canvas enforces exact 16:9 aspect ratio and maximum resolution constraints before image transmission, standardizing input geometry deterministically.
+
+  Controls Not Affected & Justification:
+    - A.5 AI Impact: No generative AI (e.g. diffusion models, neural filters, synthetic avatars) is used; only geometric canvas cropping.
+
+  Residual Risks & Human/Organizational Actions Required:
+    - Visual inspection of uploaded postcard photos during review moderation to prevent inappropriate imagery.
+
+--------------------------------------------------------------------------------
+
+FEATURE: Superadmin Control Panel & Governance Gates
+  Code Modules / Files : src/components/AdminControlPanel.tsx, firestore.rules
+  AI Role              : AI Governance & Operational Control Console
+  AI Impact Level      : Low / Administrative
+
+  Controls Met & Implementation Evidence:
+    - A.3.2 Human Accountability & Oversight: Provides Superadmin with manual override, review moderation, item deletion with explicit confirmation dialogs, and token system kill-switches.
+    - A.6.7 User Control & Intervention: Superadmin can immediately remove fraudulent listings, unapprove manipulated reviews, or lock records from CSV synchronization.
+
+  Controls Not Affected & Justification:
+    - A.4.3 AI Training: Administrative tools do not perform model fine-tuning.
+
+  Residual Risks & Human/Organizational Actions Required:
+    - Maintain credential security and audit logs of administrative override events.
+
+--------------------------------------------------------------------------------
+4. CHRONOLOGICAL ISO 42001 DEVELOPMENT & AUDIT LOG
+--------------------------------------------------------------------------------
+- [2026-11-26] Baseline AIMS Audit: Initialized ISO/IEC 42001:2023 (+ ISO/IEC 42005:2025) ledger. Evaluated whole-app architecture, algorithmic search and ranking engine, Bayesian review scoring, and AI advisory frameworks. Confirmed zero automated PII leakage to LLMs, human-in-the-loop review approval gates, deterministic schema-locked data contracts, and mandatory support for low-cost MCP models (Gemini Flash-Lite, Claude Haiku, gpt-6-luna).
+- [2026-11-26] Security & Governance Rule Activation: Released firestore.rules to cloud.firestore protecting algorithmic scoring parameters, review moderation pipelines (HITL A.6.7), and merchant/agent directory data contracts from unauthorized manipulation.
