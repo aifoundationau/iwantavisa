@@ -16,7 +16,7 @@
 
 a. [COMPLETED] firebase login
 b. [COMPLETED] firebase deploy --only firestore:iwantavisa (rules released to cloud.firestore)
-c. Firebase console → Authentication → Sign-in method → Google: enabled. Settings → Authorised domains: add www.iwantavisa.com and iwantavisa.com (and any LAN IP / tunnel used for phone testing).
+c. [COMPLETED] Firebase console → Authentication → Sign-in method → Google: enabled. Settings → Authorised domains: add www.iwantavisa.com and iwantavisa.com
 d. Upgrade the project to the Blaze plan (Cloud Functions + Secret Manager need it).
 e. firebase functions:secrets:set STRIPE_SECRET_KEY        (paste the sk_test_… key — rotate it first in the Stripe dashboard, it was shared in chat)
 f. cd functions && npm install && cd .. && firebase deploy --only functions
